@@ -1,0 +1,7 @@
+Respuestas:
+
+1- Se usa el clone_string cuando el dst del strcopy es un puntero ya que se necesita reservar memoria para poder modificarlo.
+
+2- Sobreescribe el ':' por un nulo, copia la palabra en el token y se queda apuntando al siguiente elemento que sera lo que sigue despues del ':'
+
+3-  
