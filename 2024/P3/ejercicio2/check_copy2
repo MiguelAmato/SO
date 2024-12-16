@@ -67,6 +67,5 @@ rm data_file.bin data_file_copy.bin
 rm copy_copy2.c
 make clean > /dev/null
 
-exit 0
 
 
