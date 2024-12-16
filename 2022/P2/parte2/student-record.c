@@ -10,6 +10,8 @@
 #include <dirent.h>
 #include <string.h>
 
+int optarg, optind;
+
 char* loadstr(FILE* students);
 student_t* parse_records(char* records[], int* nr_records);
 void dump_entries(student_t* entries, int nr_entries, FILE* students);

@@ -4,6 +4,7 @@
 #include <string.h>
 #include "defs.h"
 
+int optarg;
 
 /* Assume lines in the text file are no larger than 100 chars */
 #define MAXLEN_LINE_FILE 100
