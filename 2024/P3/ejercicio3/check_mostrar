@@ -47,6 +47,5 @@ echo "Everything seems ok!"
 rm mostrar_n_30 mostrar_n_30_tail mostrar_en_30 mostrar_en_30_tail
 make clean > /dev/null
 
-exit 0
 
 
