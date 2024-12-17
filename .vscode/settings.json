@@ -1,5 +1,9 @@
 {
 	"files.associations": {
-		"fcntl.h": "c"
+		"fcntl.h": "c",
+		"stdlib.h": "c",
+		"types.h": "c",
+		"sysmacros.h": "c",
+		"unistd.h": "c"
 	}
 }
