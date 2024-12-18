@@ -2,33 +2,39 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <getopt.h>
 
-pid_t launch_command(char** argv){
-    /* To be completed */
-    return 0;
+pid_t launch_command(char** argv) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        execvp(argv[0], argv);
+        perror("execvp");
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+    return pid;
 }
 
-
-
 char **parse_command(const char *cmd, int* argc) {
-    // Allocate space for the argv array (initially with space for 10 args)
     size_t argv_size = 10;
     const char *end;
     size_t arg_len; 
     int arg_count = 0;
     const char *start = cmd;
     char **argv = malloc(argv_size * sizeof(char *));
-
     if (argv == NULL) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
 
-    while (*start && isspace(*start)) start++; // Skip leading spaces
+    while (*start && isspace(*start)) start++;
 
     while (*start) {
-        // Reallocate more space if needed
-        if (arg_count >= argv_size - 1) {  // Reserve space for the NULL at the end
+        if (arg_count >= argv_size - 1) {
             argv_size *= 2;
             argv = realloc(argv, argv_size * sizeof(char *));
             if (argv == NULL) {
@@ -37,55 +43,106 @@ char **parse_command(const char *cmd, int* argc) {
             }
         }
 
-        // Find the start of the next argument
         end = start;
         while (*end && !isspace(*end)) end++;
 
-        // Allocate space and copy the argument
         arg_len = end - start;
         argv[arg_count] = malloc(arg_len + 1);
-
         if (argv[arg_count] == NULL) {
             perror("malloc");
             exit(EXIT_FAILURE);
         }
         strncpy(argv[arg_count], start, arg_len);
-        argv[arg_count][arg_len] = '\0';  // Null-terminate the argument
+        argv[arg_count][arg_len] = '\0';
         arg_count++;
 
-        // Move to the next argument, skipping spaces
         start = end;
         while (*start && isspace(*start)) start++;
     }
 
-    argv[arg_count] = NULL; // Null-terminate the array
-
-    (*argc)=arg_count; // Return argc
-
+    argv[arg_count] = NULL;
+    (*argc) = arg_count;
     return argv;
 }
 
+void execute_file(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    char buffer[1024];
+    pid_t pids[100];
+    int command_count = 0;
+
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        int cmd_argc;
+        char** cmd_argv = parse_command(buffer, &cmd_argc);
+        if (cmd_argv[0] == NULL) {
+            free(cmd_argv);
+            continue;
+        }
+
+        pids[command_count] = launch_command(cmd_argv);
+        printf("@@ Command #%d launched (pid: %d)\n", command_count + 1, pids[command_count]);
+
+        int status;
+        waitpid(pids[command_count], &status, 0);
+        printf("@@ Command #%d terminated (pid: %d, status: %d)\n", command_count + 1, pids[command_count], WEXITSTATUS(status));
+
+        for (int i = 0; i < cmd_argc; i++) {
+            free(cmd_argv[i]);
+        }
+        free(cmd_argv);
+
+        command_count++;
+        if (command_count >= 100) {
+            fprintf(stderr, "Too many commands in file.\n");
+            break;
+        }
+    }
+
+
+    fclose(file);
+}
 
 int main(int argc, char *argv[]) {
-    char **cmd_argv;
-    int cmd_argc;
-    int i;
+    int opt;
+    char* command = NULL;
+    char* filename = NULL;
 
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s \"command\"\n", argv[0]);
-        return EXIT_FAILURE;
+    while ((opt = getopt(argc, argv, "x:s:b")) != -1) {
+        switch (opt) {
+        case 'x':
+            command = optarg;
+            break;
+        case 's':
+            filename = optarg;
+            break;
+        default:
+            fprintf(stderr, "Usage: %s [-x command] [-s file] [-b]\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
     }
 
-    cmd_argv=parse_command(argv[1],&cmd_argc);
+    if (command) {
+        int cmd_argc;
+        char** cmd_argv = parse_command(command, &cmd_argc);
+        pid_t pid = launch_command(cmd_argv);
+        int status;
+        waitpid(pid, &status, 0);
 
-    // Print parsed arguments
-    printf("argc: %d\n", cmd_argc);
-    for (i = 0; cmd_argv[i] != NULL; i++) {
-        printf("argv[%d]: %s\n", i, cmd_argv[i]);
-        free(cmd_argv[i]);  // Free individual argument
+        for (int i = 0; i < cmd_argc; i++) {
+            free(cmd_argv[i]);
+        }
+        free(cmd_argv);
+    } else if (filename) {
+        execute_file(filename);
+    } else {
+        fprintf(stderr, "Usage: %s [-x command] [-s file] [-b]\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
 
-    free(cmd_argv);  // Free the cmd_argv array
-
-    return EXIT_SUCCESS;
+    return 0;
 }

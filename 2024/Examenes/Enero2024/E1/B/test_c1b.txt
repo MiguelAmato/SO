@@ -1,0 +1,3 @@
+ ls -t
+ head Makefile
+ cat test_c1b.txt
